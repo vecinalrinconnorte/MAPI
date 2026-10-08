@@ -266,7 +266,7 @@
         #map-vecino { height: 400px !important; }
     }
 
-    /* ======= PIN CELESTE CON AURA (LOCALIZADOR DEL USUARIO) ======= */
+    /* ======= PIN DE UBICACIÓN: GEOMETRÍA ORIGINAL, PALETA CELESTE ======= */
     @keyframes pulse-celeste {
         0% { transform: translateX(-50%) scale(0.8); opacity: 0.7; }
         50% { transform: translateX(-50%) scale(1.25); opacity: 1; }
@@ -274,7 +274,7 @@
     }
     .custom-pin-celeste { background: transparent !important; border: none !important; }
     .leaflet-marker-icon.custom-pin-celeste {
-        filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.4));
+        filter: drop-shadow(0 4px 12px rgba(2, 132, 199, 0.28));
         transition: transform 0.3s ease;
     }
     .leaflet-marker-icon.custom-pin-celeste:hover { transform: scale(1.08); }
@@ -2723,21 +2723,18 @@ Asociación Vecinal Rincón Norte
             const gotaCeleste = L.divIcon({
                 className: 'custom-pin-celeste',
                 html: `
-                    <div style="position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-
-                        <!-- Gota celeste -->
-                        <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; z-index: 2; margin-top: 8px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" >
-                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/>
-                                <circle cx="12" cy="9" r="3" fill="white" stroke="#0284c7" stroke-width="1.5"/>
-                                <circle cx="12" cy="9" r="1.5" fill="#0ea5e9"/>
-                            </svg>
-                        </div>
+                    <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/>
+                            <circle cx="12" cy="9" r="3" fill="white" stroke="#0284c7" stroke-width="1.5"/>
+                            <circle cx="12" cy="9" r="1.5" fill="#38bdf8"/>
+                        </svg>
+                        <div style="position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 16px rgba(56, 189, 248, 0.6); animation: pulse-celeste 1.5s ease-in-out infinite;"></div>
                     </div>
                 `,
-                iconSize: [80, 80],
-                iconAnchor: [40, 48],
-                popupAnchor: [0, -40]
+                iconSize: [38, 38],
+                iconAnchor: [19, 38],
+                popupAnchor: [0, -38]
             });
 
             if (vecinoMarker) {
@@ -3172,12 +3169,12 @@ Asociación Vecinal Rincón Norte
                 className: 'custom-pin-celeste',
                 html: `
                     <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));">
                             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/>
                             <circle cx="12" cy="9" r="3" fill="white" stroke="#0284c7" stroke-width="1.5"/>
-                            <circle cx="12" cy="9" r="1.5" fill="#0ea5e9"/>
+                            <circle cx="12" cy="9" r="1.5" fill="#38bdf8"/>
                         </svg>
-                        <div style="position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 16px rgba(56, 189, 248, 0.7); animation: pulse-celeste 1.5s ease-in-out infinite;"></div>
+                        <div style="position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 16px rgba(56, 189, 248, 0.6); animation: pulse-celeste 1.5s ease-in-out infinite;"></div>
                     </div>
                 `,
                 iconSize: [38, 38],
