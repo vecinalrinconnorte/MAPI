@@ -4951,6 +4951,9 @@ Asociación Vecinal Rincón Norte
                 const nuevaAct = data.actuacion || {fecha:new Date().toISOString(), accion:'Actuación agregada', autor:usuarioActivo, detalles};
                 if (!Array.isArray(inc.actuaciones)) inc.actuaciones = [];
                 inc.actuaciones.push(nuevaAct);
+                inc.observaciones = data.observacionesActuales ?? detalles;
+                const ultimaObs = document.getElementById('ficha-ultima-observacion');
+                if (ultimaObs) ultimaObs.textContent = inc.observaciones;
                 localStorage.setItem('SGIC_incidencias',JSON.stringify(incidencias));
                 document.getElementById('actuacion-detalles').value = '';
                 document.getElementById('form-actuacion-container').classList.add('hidden');
@@ -5023,8 +5026,8 @@ Asociación Vecinal Rincón Norte
                         }
 
                         if (observacionNueva) {
-                            inc.observaciones = observacionNueva;
-                            document.getElementById('ficha-ultima-observacion').textContent = observacionNueva;
+                            inc.observaciones = data.observacionesActuales ?? observacionNueva;
+                            document.getElementById('ficha-ultima-observacion').textContent = inc.observaciones;
                             localStorage.setItem('SGIC_incidencias', JSON.stringify(incidencias));
                         }
                         document.getElementById('ficha-observaciones').value = '';
