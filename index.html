@@ -2039,7 +2039,11 @@
         window.onload = function() {
             if (window.lucide) lucide.createIcons();
 
-            iniciarSplash();
+            if (new URLSearchParams(window.location.search).get('sinSplash') === '1') {
+                document.getElementById('splash')?.remove();
+            } else {
+                iniciarSplash();
+            }
 
             initMapPublico();
             cargarIncidenciasDesdeNube();

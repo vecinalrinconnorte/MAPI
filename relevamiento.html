@@ -502,8 +502,7 @@
                 <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-200/60">
 
                     <!-- ===== CARTEL DE CAMPAÑA ===== -->
-                    <button id="btn-cartel-campana" onclick="abrirModalCampana()" class="w-full flex items-center gap-3 p-3 rounded-xl transition-all cartel-campana-abierta mb-3 sm:mb-4 text-left">
-                        <span id="cartel-icono" class="text-2xl">🟢</span>
+                    <button id="btn-cartel-campana" type="button" onclick="abrirModalCampana()" class="w-full flex items-center gap-3 p-3 rounded-xl transition-all cartel-campana-abierta mb-3 sm:mb-4 text-left">
                         <div class="flex-1 min-w-0">
                             <p class="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider">Relevamiento Comunitario</p>
                             <p id="cartel-estado" class="font-bold text-sm sm:text-base text-brand-green-dark truncate">CAMPAÑA ABIERTA</p>
@@ -864,6 +863,11 @@
                         <span id="icono-mapa-toggle" class="text-brand-green text-sm transition-transform duration-300 group-hover:text-brand-green-dark">▾</span>
                     </button>
 
+                    <div class="px-4 pt-2 flex justify-end">
+                        <a href="index.html?sinSplash=1" class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand-green hover:underline" title="Abrir el mapa público sin presentación">
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Ir al mapa público
+                        </a>
+                    </div>
                     <div id="contenido-mapa-publico" class="hidden p-4 bg-white">
                         <div class="flex flex-wrap gap-3 mb-3 text-[10px] sm:text-xs text-slate-600">
                             <span class="flex items-center gap-1.5">
@@ -1870,6 +1874,10 @@
                         </p>
 
                         <h4 class="text-[9px] sm:text-xs font-bold text-stone-500 uppercase tracking-wider mt-3 sm:mt-4 mb-1 sm:mb-2">Observaciones</h4>
+                        <div id="ficha-contacto-reservado" class="hidden mt-3 border border-stone-200 rounded-xl bg-stone-50 p-3 text-xs no-print" aria-live="polite">
+                            <div class="font-bold text-brand-brown-dark mb-2 flex items-center gap-2"><i data-lucide="lock-keyhole" class="w-4 h-4"></i> Datos de contacto reservados</div>
+                            <div id="ficha-contacto-reservado-contenido" class="text-slate-600">Consultando información reservada…</div>
+                        </div>
                         <textarea id="ficha-observaciones" placeholder="Agregar observaciones de inspección hídrica..." rows="3" class="w-full text-[10px] sm:text-xs p-2 sm:p-2.5 border border-stone-200 rounded-lg focus:outline-none focus:border-brand-green"></textarea>
                     </div>
 
@@ -2212,7 +2220,6 @@
             <div id="modal-campana-header" class="p-5 cartel-campana-abierta">
                 <div class="flex justify-between items-start gap-3">
                     <div class="flex items-center gap-3">
-                        <span id="modal-campana-icono" class="text-3xl">🟢</span>
                         <div>
                             <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Relevamiento Comunitario</p>
                             <h3 id="modal-campana-estado" class="font-bold text-lg text-brand-green-dark">CAMPAÑA ABIERTA</h3>
@@ -2717,23 +2724,14 @@ Asociación Vecinal Rincón Norte
                 className: 'custom-pin-celeste',
                 html: `
                     <div style="position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-                        <!-- Aura difuminada grande (detrás) -->
-                        <div class="aura-difuminada-pin" style="
-                            width: 80px;
-                            height: 80px;
-                            top: 50%;
-                            left: 50%;
-                            transform: translate(-50%, -50%);
-                        "></div>
 
                         <!-- Gota celeste -->
                         <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; z-index: 2; margin-top: 8px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.55));">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" >
                                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/>
                                 <circle cx="12" cy="9" r="3" fill="white" stroke="#0284c7" stroke-width="1.5"/>
                                 <circle cx="12" cy="9" r="1.5" fill="#0ea5e9"/>
                             </svg>
-                            <div style="position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); width: 10px; height: 10px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 16px rgba(56, 189, 248, 0.7); animation: pulse-celeste 1.5s ease-in-out infinite;"></div>
                         </div>
                     </div>
                 `,
@@ -2800,16 +2798,7 @@ Asociación Vecinal Rincón Norte
                     colocarMarcadorVecino(lat, lng, false);
 
                     if (vecinoAccuracyCircle) mapVecino.removeLayer(vecinoAccuracyCircle);
-                    if (accuracy > 0) {
-                        vecinoAccuracyCircle = L.circle([lat, lng], {
-                            radius: accuracy,
-                            weight: 2,
-                            opacity: 0.6,
-                            color: '#38bdf8',
-                            fillColor: '#38bdf8',
-                            fillOpacity: 0.12
-                        }).addTo(mapVecino);
-                    }
+                    // No dibujar círculo de precisión: mantener únicamente el pin.
 
                     completarDireccionDesdeCoordenadas(lat, lng);
 
@@ -3183,7 +3172,7 @@ Asociación Vecinal Rincón Norte
                 className: 'custom-pin-celeste',
                 html: `
                     <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.55));">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" >
                             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#38bdf8" stroke="#0284c7" stroke-width="2"/>
                             <circle cx="12" cy="9" r="3" fill="white" stroke="#0284c7" stroke-width="1.5"/>
                             <circle cx="12" cy="9" r="1.5" fill="#0ea5e9"/>
@@ -3536,6 +3525,12 @@ Asociación Vecinal Rincón Norte
         prioridad: "Media",
         estado: "Pendiente",
         observaciones: "",
+        contactoReservado: {
+            nombre: document.getElementById("vecino-nombre-contacto").value.trim(),
+            telefono: document.getElementById("vecino-telefono-contacto").value.trim(),
+            email: document.getElementById("vecino-email-contacto").value.trim(),
+            reclamoMunicipal: document.getElementById("vecino-reclamo-municipal").checked
+        },
         actuaciones: [
             { fecha: fecha, accion: "Reporte Vecinal Ingresado", autor: "Vecino", detalles: "Incidencia relevada a través del portal de autogestión comunitaria." }
         ],
@@ -3543,11 +3538,14 @@ Asociación Vecinal Rincón Norte
         fotoBase64: fotoBase64
     };
 
+    // Datos personales viajan al backend, pero nunca al listado de reportes ni al almacenamiento local.
+    const envioSeguro = { ...nuevaIncidencia };
+    delete nuevaIncidencia.contactoReservado;
     showAlert(`⏳ Guardando incidencia en la nube...`, "success");
 
     fetch(webAppUrl, {
         method: 'POST',
-        body: JSON.stringify(nuevaIncidencia),
+        body: JSON.stringify(envioSeguro),
         headers: {
             "Content-Type": "text/plain;charset=utf-8"
         }
@@ -3687,12 +3685,14 @@ Asociación Vecinal Rincón Norte
 
                 sessionStorage.setItem("SGIC_access_type", currentAccessType);
                 sessionStorage.setItem("SGIC_username", currentUsername);
+                if (data.sessionToken) sessionStorage.setItem('SGIC_session_token',data.sessionToken);
 
                 if (!["ADMIN", "VECINAL"].includes(currentAccessType)) {
                     currentAccessType = null;
                     currentUsername = null;
                     sessionStorage.removeItem("SGIC_access_type");
                     sessionStorage.removeItem("SGIC_username");
+                    sessionStorage.removeItem("SGIC_session_token");
                     throw new Error("El usuario todavía no tiene un tipo de acceso habilitado.");
                 }
 
@@ -3709,6 +3709,7 @@ Asociación Vecinal Rincón Norte
                 currentUsername = null;
                 sessionStorage.removeItem("SGIC_access_type");
                 sessionStorage.removeItem("SGIC_username");
+                    sessionStorage.removeItem("SGIC_session_token");
                 showAlert(error.message || "Usuario o contraseña incorrectos.", "error");
             } finally {
                 btn.disabled = false;
@@ -3831,6 +3832,7 @@ Asociación Vecinal Rincón Norte
             currentUsername = null;
             sessionStorage.removeItem("SGIC_access_type");
             sessionStorage.removeItem("SGIC_username");
+                    sessionStorage.removeItem("SGIC_session_token");
             setTimeout(() => mapVecino.invalidateSize(), 150);
         }
 
@@ -4847,6 +4849,38 @@ Asociación Vecinal Rincón Norte
             }, 200);
         }
 
+        // Consulta privada: jamás se incorpora a `incidencias` ni a la caché pública.
+        async function cargarContactoReservadoFicha(id) {
+            const bloque = document.getElementById('ficha-contacto-reservado');
+            const contenido = document.getElementById('ficha-contacto-reservado-contenido');
+            const token = sessionStorage.getItem('SGIC_session_token') || '';
+            if (!bloque || !contenido) return;
+            if (!token || !['ADMIN','VECINAL'].includes(String(currentAccessType || '').toUpperCase())) {
+                bloque.classList.add('hidden');
+                return;
+            }
+            bloque.classList.remove('hidden');
+            contenido.textContent = 'Consultando información reservada…';
+            try {
+                const r = await fetch(webAppUrl, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+                    body:JSON.stringify({action:'getContactoReservado',id,token}) });
+                const data = await r.json();
+                if (activeFichaId !== id) return;
+                if (data.status !== 'success') throw Error(data.message || 'No se pudo consultar la información');
+                const c = data.contacto;
+                if (!c) { contenido.textContent = 'El vecino no proporcionó datos de contacto.'; return; }
+                contenido.replaceChildren();
+                [['Nombre y apellido',c.nombre], ['Teléfono',c.telefono], ['Correo electrónico',c.email],
+                 ['Reclamo municipal previo',c.reclamoMunicipal]].forEach(([etiqueta,valor])=>{
+                    const p=document.createElement('p'); p.className='mb-1 break-words';
+                    const b=document.createElement('strong'); b.textContent=etiqueta+': ';
+                    p.appendChild(b);p.appendChild(document.createTextNode(String(valor || '—')));contenido.appendChild(p);
+                 });
+            } catch(err) {
+                if (activeFichaId === id) contenido.textContent='No se pudieron consultar los datos reservados: '+err.message;
+            }
+        }
+
         function openFicha(id) {
             const inc = incidencias.find(i => i.id === id);
             if (!inc) return;
@@ -4864,6 +4898,7 @@ Asociación Vecinal Rincón Norte
             document.getElementById("ficha-coordenadas").innerText = `${inc.lat.toFixed(7)}, ${inc.lng.toFixed(7)}`;
             document.getElementById("ficha-descripcion").innerText = inc.comentario || "Sin comentarios o descripción detallada.";
             document.getElementById("ficha-observaciones").value = inc.observaciones || "";
+            cargarContactoReservadoFicha(inc.id);
 
             document.getElementById("ficha-imagen-evidencia").src = inc.foto;
 
@@ -5613,8 +5648,8 @@ Asociación Vecinal Rincón Norte
             if (!btnCartel) return;
 
             if (cfg.activa) {
-                btnCartel.className = "w-full flex items-center gap-3 p-3 rounded-xl transition-all cartel-campana-abierta mb-3 sm:mb-4 text-left";
-                iconoCartel.textContent = "🟢";
+                btnCartel.className = "w-full flex items-center gap-3 p-3 rounded-xl transition-all mb-3 sm:mb-4 text-left " + (cfg.activa ? "cartel-campana-abierta" : "cartel-campana-cerrada");
+                if (iconoCartel) iconoCartel.textContent = "";
                 estadoCartel.textContent = "CAMPAÑA ABIERTA";
                 estadoCartel.className = "font-bold text-sm sm:text-base text-brand-green-dark truncate";
 
@@ -5653,8 +5688,8 @@ if (contenidoMapa && !contenidoMapa.classList.contains("hidden")) {
     if (iconoMapa) iconoMapa.style.transform = "rotate(0deg)";
 }
             } else {
-                btnCartel.className = "w-full flex items-center gap-3 p-3 rounded-xl transition-all cartel-campana-cerrada mb-3 sm:mb-4 text-left";
-                iconoCartel.textContent = "🔴";
+                btnCartel.className = "w-full flex items-center gap-3 p-3 rounded-xl transition-all mb-3 sm:mb-4 text-left " + (cfg.activa ? "cartel-campana-abierta" : "cartel-campana-cerrada");
+                if (iconoCartel) iconoCartel.textContent = "";
                 estadoCartel.textContent = "CAMPAÑA CERRADA";
                 estadoCartel.className = "font-bold text-sm sm:text-base text-red-700 truncate";
 
