@@ -1870,8 +1870,6 @@
                         </p>
 
                         <h4 class="text-[9px] sm:text-xs font-bold text-stone-500 uppercase tracking-wider mt-3 sm:mt-4 mb-1 sm:mb-2">Observaciones</h4>
-                        <p class="text-[9px] sm:text-[10px] text-stone-500 mb-1">Última observación registrada</p><p id="ficha-ultima-observacion" class="whitespace-pre-wrap text-[10px] sm:text-xs text-slate-700 bg-stone-50 border border-stone-200/60 rounded-lg p-2.5 mb-2">Sin observaciones registradas.</p>
-                        <p class="text-[9px] sm:text-[10px] text-stone-500 mb-1">Nueva observación</p>
                         <textarea id="ficha-observaciones" placeholder="Agregar observaciones de inspección hídrica..." rows="3" class="w-full text-[10px] sm:text-xs p-2 sm:p-2.5 border border-stone-200 rounded-lg focus:outline-none focus:border-brand-green"></textarea>
                     </div>
 
@@ -1899,8 +1897,7 @@
                     </h4>
 
                     <div id="form-actuacion-container" class="hidden mt-2 sm:mt-3 p-2 sm:p-3 bg-stone-50 border border-stone-200 rounded-lg space-y-2 sm:space-y-3 no-print">
-                        <label for="actuacion-detalles" class="block text-[10px] sm:text-xs font-semibold text-slate-700">Describí la actuación realizada</label>
-                        <textarea id="actuacion-detalles" placeholder="Explicá qué hiciste en este expediente..." rows="3" class="w-full px-2 py-1.5 text-[10px] sm:text-xs border border-stone-200 rounded-md" required></textarea>
+                        <textarea id="actuacion-detalles" aria-label="Describí la actuación realizada" placeholder="Describí la actuación realizada" rows="3" class="w-full px-2 py-1.5 text-[10px] sm:text-xs border border-stone-200 rounded-md" required></textarea>
                         <div class="flex justify-end gap-2">
                             <button onclick="toggleActuacionForm()" class="px-2 py-1 text-[9px] sm:text-[10px] font-bold text-stone-500 bg-white hover:bg-stone-100 border border-stone-200 rounded min-h-[34px]">Cancelar</button>
                             <button onclick="addActuacion()" class="px-2 py-1 text-[9px] sm:text-[10px] font-bold text-white bg-brand-green hover:bg-brand-green-dark rounded shadow min-h-[34px]">Guardar</button>
@@ -4866,8 +4863,7 @@ Asociación Vecinal Rincón Norte
             document.getElementById("ficha-fecha").innerText = fechaFmt;
             document.getElementById("ficha-coordenadas").innerText = `${inc.lat.toFixed(7)}, ${inc.lng.toFixed(7)}`;
             document.getElementById("ficha-descripcion").innerText = inc.comentario || "Sin comentarios o descripción detallada.";
-            document.getElementById("ficha-observaciones").value = "";
-            document.getElementById("ficha-ultima-observacion").textContent = inc.observaciones || "Sin observaciones registradas.";
+            document.getElementById("ficha-observaciones").value = inc.observaciones || "";
 
             document.getElementById("ficha-imagen-evidencia").src = inc.foto;
 
@@ -4952,8 +4948,9 @@ Asociación Vecinal Rincón Norte
                 if (!Array.isArray(inc.actuaciones)) inc.actuaciones = [];
                 inc.actuaciones.push(nuevaAct);
                 inc.observaciones = data.observacionesActuales ?? detalles;
-                const ultimaObs = document.getElementById('ficha-ultima-observacion');
-                if (ultimaObs) ultimaObs.textContent = inc.observaciones;
+                document.getElementById('ficha-observaciones').value = inc.observaciones;
+                setFichaOriginalState();
+                updateFichaSaveButton();
                 localStorage.setItem('SGIC_incidencias',JSON.stringify(incidencias));
                 document.getElementById('actuacion-detalles').value = '';
                 document.getElementById('form-actuacion-container').classList.add('hidden');
@@ -4982,20 +4979,20 @@ Asociación Vecinal Rincón Norte
                 return;
             }
 
-            inc.estado = document.getElementById("ficha-select-estado").value;
-            inc.prioridad = document.getElementById("ficha-select-prioridad").value;
-            const observacionNueva = document.getElementById("ficha-observaciones").value.trim();
-
-            localStorage.setItem("SGIC_incidencias", JSON.stringify(incidencias));
+            const estadoNuevo = document.getElementById("ficha-select-estado").value;
+            const prioridadNueva = document.getElementById("ficha-select-prioridad").value;
+            const observacionNueva = document.getElementById("ficha-observaciones").value;
+            const observacionModificada = observacionNueva !== (fichaOriginalState?.observaciones ?? "");
 
             showAlert(`⏳ Actualizando registro en base de datos...`, "success");
 
             const payload = {
                 action: "update",
                 id: inc.id,
-                estado: inc.estado,
-                prioridad: inc.prioridad,
+                estado: estadoNuevo,
+                prioridad: prioridadNueva,
                 observaciones: observacionNueva,
+                observacionesModificadas: observacionModificada,
                 usuario: getCurrentUsername()
             };
 
@@ -5009,6 +5006,11 @@ Asociación Vecinal Rincón Norte
                 try {
                     const data = JSON.parse(text);
                     if (data.status === "success") {
+                        if (observacionModificada && (data.observacionesActuales !== observacionNueva || data.observacionVerificada !== true)) {
+                            throw new Error('El servidor no verificó Incidencias!N: actualizá la implementación de Apps Script.');
+                        }
+                        inc.estado = estadoNuevo;
+                        inc.prioridad = prioridadNueva;
                         if (data.actuacion) {
                             if (!Array.isArray(inc.actuaciones)) inc.actuaciones = [];
                             inc.actuaciones.push({
@@ -5025,12 +5027,12 @@ Asociación Vecinal Rincón Norte
                             renderFichaActuaciones(inc.actuaciones);
                         }
 
-                        if (observacionNueva) {
+                        if (observacionModificada) {
                             inc.observaciones = data.observacionesActuales ?? observacionNueva;
-                            document.getElementById('ficha-ultima-observacion').textContent = inc.observaciones;
                             localStorage.setItem('SGIC_incidencias', JSON.stringify(incidencias));
                         }
-                        document.getElementById('ficha-observaciones').value = '';
+                        localStorage.setItem('SGIC_incidencias', JSON.stringify(incidencias));
+                        setFichaOriginalState();
                         closeModal();
                         showAlert(`✅ ¡Expediente ${inc.id} actualizado con éxito en la nube!`, "success");
 
@@ -5046,7 +5048,7 @@ Asociación Vecinal Rincón Norte
                         showAlert(`⚠️ Error al actualizar en la nube: ${data.message}`, "error");
                     }
                 } catch (e) {
-                    showAlert(`⚠️ Error de respuesta al sincronizar.`, "error");
+                    showAlert(`⚠️ Error de guardado: ${e.message}`, "error");
                 }
             })
             .catch(error => {
