@@ -2851,6 +2851,7 @@ Asociación Vecinal Rincón Norte
             actualizarStatsCampana();
             actualizarPanelResultadosCampana();
 
+            window.mapiIncidenciasCargadas = false;
             cargarIncidenciasDesdeNube();
 
             // GPS sólo a pedido del vecino; evita errores de CoreLocation al ingresar.
@@ -5380,6 +5381,9 @@ Asociación Vecinal Rincón Norte
 
                         return marcaBorrado !== "borrado";
                     });
+                    // La respuesta exitosa del servidor confirma que la carga inicial terminó.
+                    // Debe establecerse aquí, no al guardar o enviar un expediente.
+                    window.mapiIncidenciasCargadas = true;
                     localStorage.setItem("SGIC_incidencias", JSON.stringify(incidencias));
 
                     if (data.referencias) {
@@ -5744,6 +5748,7 @@ setTimeout(() => {
 
         function abrirModalCampana() {
             if (!window.mapiCampanaLista) { cargarCampanaPublicaMAPI(); return; }
+            actualizarStatsCampana();
             document.getElementById("modal-campana").classList.remove("hidden");
             document.body.style.overflow = "hidden";
             if (window.lucide) lucide.createIcons();
@@ -5756,7 +5761,7 @@ setTimeout(() => {
 
         let campanasMAPI=[];let campanaEditNumeroMAPI=null;
         async function mapiCampRequest_(data){const r=await fetch(webAppUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...data,token:sessionStorage.getItem('SGIC_session_token')||''})});const j=await r.json();if(j.status!=='success')throw Error(j.message||'Error de servidor');return j;}
-        function aplicarCampanaPublicaMAPI_(c){if(!c)return;window.mapiCampanaLista=true;ESTADO_CAMPANA={...DEFAULT_CAMPANA,activa:!!c.activa,numero:c.numero,nombre:c.nombre,fechaInicio:c.inicio,fechaFin:c.fin,diasRestantes:c.diasRestantes,textoAbierta:c.textoAbierta||DEFAULT_CAMPANA.textoAbierta,textoCerrada:c.textoCerrada||DEFAULT_CAMPANA.textoCerrada,proximaCampana:[c.proximoInicio,c.proximoFin].filter(Boolean).map(mapiFechaES_).join(' al ')};aplicarEstadoCampanaUI();}
+        function aplicarCampanaPublicaMAPI_(c){if(!c)return;window.mapiCampanaLista=true;ESTADO_CAMPANA={...DEFAULT_CAMPANA,activa:!!c.activa,numero:c.numero,nombre:c.nombre,fechaInicio:c.inicio,fechaFin:c.fin,diasRestantes:c.diasRestantes,textoAbierta:c.textoAbierta||DEFAULT_CAMPANA.textoAbierta,textoCerrada:c.textoCerrada||DEFAULT_CAMPANA.textoCerrada,proximaCampana:[c.proximoInicio,c.proximoFin].filter(Boolean).map(mapiFechaES_).join(' al ')};aplicarEstadoCampanaUI();actualizarStatsCampana();}
         async function cargarCampanaPublicaMAPI(){
             try {
                 const r=await fetch(webAppUrl+'?action=getCampanaPublica&_='+Date.now(),{cache:'no-store'});
@@ -5785,25 +5790,31 @@ setTimeout(() => {
         async function adminAccionCampana(accion){try{const estado=accion==='abrir'?'ABIERTA':accion==='cerrar'?'CERRADA':'AUTO';const j=await mapiCampRequest_({action:'forceCampana',numero:ESTADO_CAMPANA.numero,estado});aplicarCampanaPublicaMAPI_(j.publica);await cargarCampanasAdminMAPI();showAlert('Estado actualizado en Campañas!H','success');}catch(e){showAlert(e.message,'error');}}
 
         function actualizarStatsCampana(filteredData = null) {
-            const data = (filteredData || incidencias).filter(i => ESTADO_CAMPANA.numero && Number(i.campana)===Number(ESTADO_CAMPANA.numero));
-
+            // Siempre contar toda la campaña, sin depender de filtros del panel.
+            // No confundir "todavía no cargó" con "cero reportes".
+            const cargadas = window.mapiIncidenciasCargadas === true;
+            const campañaLista = window.mapiCampanaLista === true;
+            const lista = Array.isArray(incidencias) ? incidencias : [];
+            const data = lista.filter(i => ESTADO_CAMPANA.numero != null &&
+                String(i.campana ?? '').trim() === String(ESTADO_CAMPANA.numero).trim());
             const total = data.length;
-            const pendientes = data.filter(i => i.estado === 'Pendiente').length;
+            const pendientes = data.filter(i => String(i.estado || '').trim().toLowerCase() === 'pendiente').length;
             const validados = total - pendientes;
+            const mostrar = valor => (cargadas && campañaLista) ? String(valor) : '—';
 
             const statRecibidos = document.getElementById("admin-campana-stat-recibidos");
             const statValidados = document.getElementById("admin-campana-stat-validados");
             const statPendientes = document.getElementById("admin-campana-stat-pendientes");
 
-            if (statRecibidos) statRecibidos.textContent = total;
-            if (statValidados) statValidados.textContent = validados;
-            if (statPendientes) statPendientes.textContent = pendientes;
+            if (statRecibidos) statRecibidos.textContent = mostrar(total);
+            if (statValidados) statValidados.textContent = mostrar(validados);
+            if (statPendientes) statPendientes.textContent = mostrar(pendientes);
 
             const modalRecibidos = document.getElementById("modal-campana-recibidos");
             const modalValidados = document.getElementById("modal-campana-validados");
 
-            if (modalRecibidos) modalRecibidos.textContent = total;
-            if (modalValidados) modalValidados.textContent = validados;
+            if (modalRecibidos) modalRecibidos.textContent = mostrar(total);
+            if (modalValidados) modalValidados.textContent = mostrar(validados);
         }
 
         function actualizarPanelResultadosCampana() {
