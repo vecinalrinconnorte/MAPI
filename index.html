@@ -1251,8 +1251,10 @@
                 </div>
                 <div class="splash-spinner-grupo">
                     <div class="splash-spinner"></div>
-                    <div class="splash-spinner-texto" id="splash-estado">Preparando la plataforma…</div>
+                    <div class="splash-spinner-texto" id="splash-estado" role="status" aria-live="polite">Preparando la plataforma…</div>
                 </div>
+                <div id="splash-conteo" role="status" aria-live="polite" style="color:#fff;font-size:14px;font-weight:700;text-align:center;min-height:20px;">Esperando reportes…</div>
+                <button id="splash-reintentar" type="button" onclick="reintentarCargaPublica()" hidden style="padding:12px 22px;border:1px solid rgba(255,255,255,.55);border-radius:12px;background:#f4d03f;color:#16402b;font-weight:750;font-size:14px;cursor:pointer;min-width:170px;">↻ Reintentar carga</button>
             </div>
         </div>
 
@@ -1977,79 +1979,100 @@
         // ==============================================
         // CARGA DE DATOS DESDE LA NUBE
         // ==============================================
-        function cargarIncidenciasDesdeNube() {
-            fetch(webAppUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === "success") {
-                        incidencias = (data.data || []).filter(inc => {
-                            const marcaBorrado = String(
-                                inc.borrado ?? inc.Borrado ?? inc.eliminado ?? inc.Eliminado ?? ""
-                            ).trim().toLowerCase();
+        // El splash se mantiene hasta completar una sincronización comprobada.
+        let cargaPublicaEnCurso = false;
+        let cargaPublicaTerminada = false;
+        let controladorCargaPublica = null;
 
-                            return marcaBorrado !== "borrado";
-                        });
+        function estadoSplashPublico(mensaje, conteo, error = false) {
+            const estado = document.getElementById('splash-estado');
+            const numero = document.getElementById('splash-conteo');
+            const boton = document.getElementById('splash-reintentar');
+            const spinner = document.querySelector('#splash .splash-spinner');
+            if (estado) estado.textContent = mensaje;
+            if (numero) numero.textContent = conteo;
+            if (boton) boton.hidden = !error;
+            if (spinner) spinner.style.display = error ? 'none' : '';
+        }
 
-                        actualizarMapaPublico();
-                    } else {
-                        console.error("Error al leer desde la nube:", data.message);
-                        showAlert("No se pudieron cargar los reportes.");
-                    }
-                })
-                .catch(error => {
-                    console.error("Error de conexión al leer datos:", error);
-                    showAlert("No se pudieron cargar los reportes. Revisá tu conexión.");
+        async function cargarIncidenciasDesdeNube() {
+            if (cargaPublicaEnCurso || cargaPublicaTerminada) return;
+            cargaPublicaEnCurso = true;
+            estadoSplashPublico('Sincronizando reportes…', 'Consultando la base de datos…');
+            const controlador = new AbortController();
+            controladorCargaPublica = controlador;
+            const tiempoMaximo = setTimeout(() => controlador.abort(), 25000);
+
+            try {
+                const response = await fetch(webAppUrl, {
+                    signal: controlador.signal,
+                    cache: 'no-store'
                 });
-        }
-
-        // ==============================================
-        // SPLASH SCREEN
-        // ==============================================
-        function iniciarSplash() {
-            const estado = document.getElementById("splash-estado");
-            const splash = document.getElementById("splash");
-            if (!splash || !estado) return;
-
-            const mensajes = [
-                "Preparando la plataforma…",
-                "Cargando mapa del barrio…",
-                "Sincronizando reportes…",
-                "Casi listo…"
-            ];
-
-            let i = 0;
-            const intervalo = setInterval(() => {
-                i++;
-                if (i < mensajes.length) {
-                    estado.textContent = mensajes[i];
+                if (!response.ok) throw new Error('Respuesta HTTP ' + response.status);
+                const data = await response.json();
+                if (!data || data.status !== 'success' || !Array.isArray(data.data)) {
+                    throw new Error(data?.message || 'La respuesta no contiene una lista válida de reportes');
                 }
-            }, 1600);
+                const recibidos = data.data.length;
+                const validos = data.data.filter(inc => {
+                    const marcaBorrado = String(
+                        inc.borrado ?? inc.Borrado ?? inc.eliminado ?? inc.Eliminado ?? ''
+                    ).trim().toLowerCase();
+                    return marcaBorrado !== 'borrado';
+                });
+                incidencias = validos;
+                // Primero dibujar la capa, luego habilitar el mapa público.
+                if (!mapPublico || !mapPublicoClusterGroup) {
+                    throw new Error('El mapa no pudo inicializarse correctamente');
+                }
+                actualizarMapaPublico();
+                cargaPublicaTerminada = true;
+                const etiqueta = validos.length === 1 ? 'reporte cargado' : 'reportes cargados';
+                estadoSplashPublico('¡Sincronización completada!', `${validos.length} ${etiqueta}`);
+                console.info(`MAPI: ${recibidos} registros recibidos; ${validos.length} no borrados.`);
+                await new Promise(resolve => setTimeout(resolve, 1300));
+                const splash = document.getElementById('splash');
+                if (splash) {
+                    splash.classList.add('fade-out');
+                    setTimeout(() => {
+                        splash.remove();
+                        if (mapPublico) mapPublico.invalidateSize({pan: false});
+                    }, 800);
+                }
+            } catch (error) {
+                console.error('MAPI: falló la carga de reportes:', error);
+                const detalle = error.name === 'AbortError'
+                    ? 'Tiempo de espera agotado.'
+                    : 'No se pudieron cargar los reportes.';
+                estadoSplashPublico(detalle, 'No se abrió el mapa porque faltan datos. Podés volver a intentar.', true);
+            } finally {
+                clearTimeout(tiempoMaximo);
+                controladorCargaPublica = null;
+                cargaPublicaEnCurso = false;
+            }
+        }
 
-            setTimeout(() => {
-                clearInterval(intervalo);
-                estado.textContent = "¡Listo!";
-                splash.classList.add("fade-out");
-                setTimeout(() => splash.remove(), 800);
-            }, 7000);
+        function reintentarCargaPublica() {
+            if (cargaPublicaEnCurso) return;
+            cargarIncidenciasDesdeNube();
         }
 
         // ==============================================
-        // ARRANQUE
+        // ARRANQUE (sin temporizador que fuerce la apertura)
         // ==============================================
         window.onload = function() {
             if (window.lucide) lucide.createIcons();
-
-            if (new URLSearchParams(window.location.search).get('sinSplash') === '1') {
-                document.getElementById('splash')?.remove();
-            } else {
-                iniciarSplash();
+            estadoSplashPublico('Preparando el mapa…', 'Esperando reportes…');
+            try {
+                initMapPublico();
+            } catch (error) {
+                console.error('MAPI: error al iniciar el mapa:', error);
+                estadoSplashPublico('No se pudo preparar el mapa.', 'Intentá nuevamente.', true);
+                return;
             }
-
-            initMapPublico();
             cargarIncidenciasDesdeNube();
-
             setTimeout(() => {
-                if (mapPublico) mapPublico.invalidateSize();
+                if (mapPublico) mapPublico.invalidateSize({pan: false});
             }, 200);
         };
     </script>
