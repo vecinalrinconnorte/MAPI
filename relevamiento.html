@@ -1419,7 +1419,7 @@
                                   <div id="mapi-resumen-usuarios" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4"></div>
                                   <label class="block text-xs text-slate-500 font-semibold mb-1" for="config-usuarios-buscador">Buscar usuario</label>
                                   <input type="search" id="config-usuarios-buscador" oninput="filtrarUsuariosConfig()" placeholder="Nombre, apellido, usuario o correo..." class="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg mb-3 focus:outline-none focus:border-brand-green">
-                                  <div class="overflow-x-auto border rounded-xl border-stone-200"><table class="w-full text-sm text-left min-w-[760px]"><thead class="bg-stone-50 text-slate-600"><tr><th class="p-3">Nombre</th><th class="p-3">Usuario</th><th class="p-3">Correo</th><th class="p-3">Teléfono</th><th class="p-3">Solicitud</th><th class="p-3">Rol asignado</th><th class="p-3">Acción</th></tr></thead><tbody id="config-usuarios-lista"><tr><td colspan="7" class="p-4">Cargando usuarios...</td></tr></tbody></table></div>
+                                  <div class="overflow-x-auto border rounded-xl border-stone-200"><table class="w-full text-sm text-left"><thead class="bg-stone-50 text-slate-600"><tr><th class="p-3">Nombre</th><th class="p-3">Usuario</th><th class="p-3">Rol asignado</th><th class="p-3">Acción</th></tr></thead><tbody id="config-usuarios-lista"><tr><td colspan="4" class="p-4">Cargando usuarios...</td></tr></tbody></table></div>
                                   <p id="mapi-total-usuarios" class="text-xs text-slate-500 mt-3"></p>
                                 </div>
 
@@ -3919,7 +3919,7 @@ Asociación Vecinal Rincón Norte
             const lista = document.getElementById("config-usuarios-lista");
             if (!lista) return;
 
-            lista.innerHTML = `<tr><td colspan="7" class="p-4">Cargando usuarios...</td></tr>`;
+            lista.innerHTML = `<tr><td colspan="4" class="p-4">Cargando usuarios...</td></tr>`;
 
             try {
                 const res = await fetch(webAppUrl, {
@@ -3942,7 +3942,7 @@ Asociación Vecinal Rincón Norte
             } catch (error) {
                 console.error("Error cargando usuarios:", error);
                 lista.innerHTML = `
-                    <tr><td colspan="7" class="p-3 bg-amber-50 text-amber-800">
+                    <tr><td colspan="4" class="p-3 bg-amber-50 text-amber-800">
                         ⚠️ No se pudieron cargar los usuarios.
                         <div class="mt-2 break-words" id="error-usuarios-mapi"></div>
                     </td></tr>
@@ -3964,7 +3964,7 @@ Asociación Vecinal Rincón Norte
             const contar = r => usuariosCache.filter(u => String(u.tipoAcceso || '').toUpperCase() === r).length;
             const resumen = document.getElementById('mapi-resumen-usuarios');
             if(resumen) resumen.innerHTML = [['ADMIN',contar('ADMIN'),'bg-emerald-900 text-white'],['VECINAL',contar('VECINAL'),'bg-blue-50 text-blue-800'],['RECHAZADOS',contar('RECHAZADO'),'bg-red-50 text-red-700'],['SIN ASIGNAR',usuariosCache.filter(u=>!String(u.tipoAcceso||'').trim()).length,'bg-amber-50 text-amber-800']].map(x=>`<div class="rounded-xl p-3 ${x[2]}"><div class="text-[10px] font-semibold">${x[0]}</div><div class="text-2xl font-bold">${x[1]}</div></div>`).join('');
-            tbody.innerHTML = lista.length ? lista.map(u => `<tr class="border-t border-stone-200 hover:bg-stone-50"><td class="p-3 font-semibold">${escapeMAPI(u.nombre)} ${escapeMAPI(u.apellido)}</td><td class="p-3 text-xs">${escapeMAPI(u.usuario)}</td><td class="p-3">${escapeMAPI(u.email || '—')}</td><td class="p-3">${escapeMAPI(u.telefono || '—')}</td><td class="p-3">${escapeMAPI(u.tipoSolicitado || '—')}</td><td class="p-3">${rolUsuarioMAPI(u.tipoAcceso)}</td><td class="p-3"><button type="button" class="border rounded-lg px-3 py-1.5 text-xs font-semibold" onclick="editarUsuarioMAPI(${Number(u.fila)})">Editar</button></td></tr>`).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-500">No hay usuarios que coincidan con la búsqueda.</td></tr>';
+            tbody.innerHTML = lista.length ? lista.map(u => `<tr class="border-t border-stone-200 hover:bg-stone-50"><td class="p-3 font-semibold">${escapeMAPI(u.nombre)} ${escapeMAPI(u.apellido)}</td><td class="p-3 text-xs">${escapeMAPI(u.usuario)}</td><td class="p-3">${rolUsuarioMAPI(u.tipoAcceso)}</td><td class="p-3"><button type="button" class="border rounded-lg px-3 py-1.5 text-xs font-semibold" onclick="editarUsuarioMAPI(${Number(u.fila)})">Editar</button></td></tr>`).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-500">No hay usuarios que coincidan con la búsqueda.</td></tr>';
             const total = document.getElementById('mapi-total-usuarios'); if(total) total.textContent = `${lista.length} de ${usuariosCache.length} usuarios registrados.`;
         }
         let mapiUsuarioOriginal = '';
@@ -4498,7 +4498,7 @@ Asociación Vecinal Rincón Norte
             if (filteredData.length === 0) {
                 body.innerHTML = `
                     <tr>
-                        <td colspan="7" class="p-3 sm:p-8 text-center text-slate-400 font-medium text-[9px] sm:text-xs">No se encontraron expedientes.</td>
+                        <td colspan="4" class="p-3 sm:p-8 text-center text-slate-400 font-medium text-[9px] sm:text-xs">No se encontraron expedientes.</td>
                     </tr>
                 `;
                 return;
@@ -4984,6 +4984,7 @@ Asociación Vecinal Rincón Norte
                 try {
                     const data = JSON.parse(text);
                     if (data.status === "success") {
+                        if (!Array.isArray(inc.actuaciones)) inc.actuaciones = [];
                         inc.actuaciones.push(nuevaAct);
                         localStorage.setItem("SGIC_incidencias", JSON.stringify(incidencias));
 
@@ -5064,6 +5065,8 @@ Asociación Vecinal Rincón Norte
                                 usuario: data.actuacion.usuario || usuarioActivo
                             });
                             localStorage.setItem("SGIC_incidencias", JSON.stringify(incidencias));
+                            // Mostrar la actuación apenas confirma el servidor, sin esperar la sincronización general.
+                            renderFichaActuaciones(inc.actuaciones);
                         }
 
                         document.getElementById('ficha-observaciones').value = '';
