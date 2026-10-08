@@ -5006,7 +5006,7 @@ Asociación Vecinal Rincón Norte
                 try {
                     const data = JSON.parse(text);
                     if (data.status === "success") {
-                        if (observacionModificada && (data.observacionesActuales !== observacionNueva || data.observacionVerificada !== true)) {
+                        if (observacionModificada && data.observacionVerificada === false) {
                             throw new Error('El servidor no verificó Incidencias!N: actualizá la implementación de Apps Script.');
                         }
                         inc.estado = estadoNuevo;
