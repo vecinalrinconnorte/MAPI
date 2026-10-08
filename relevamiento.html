@@ -1412,23 +1412,15 @@
 
                                 <!-- ===== SECCIÓN: USUARIOS ===== -->
                                 <div id="config-section-usuarios" class="config-section">
-                                    <div class="mb-4 pb-3 border-b border-stone-200 flex items-center justify-between flex-wrap gap-2">
-                                        <div>
-                                            <h3 class="font-bold text-brand-brown-dark text-base">Usuarios</h3>
-                                            <p class="text-xs text-slate-500">Gestión de accesos al panel de control.</p>
-                                        </div>
-                                        <button onclick="cargarUsuariosConfig()" class="flex items-center gap-1 px-3 py-1.5 bg-stone-100 border border-stone-300 text-slate-700 hover:bg-stone-200 rounded-lg text-xs font-semibold transition">
-                                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Recargar
-                                        </button>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <input type="text" id="config-usuarios-buscador" oninput="filtrarUsuariosConfig()" placeholder="Buscar por nombre, apellido o usuario..." class="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:border-brand-green">
-                                    </div>
-
-                                    <div id="config-usuarios-lista" class="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                                        <p class="text-xs text-slate-400 text-center py-4">Cargando usuarios...</p>
-                                    </div>
+                                  <div class="flex items-center justify-between gap-2 mb-4">
+                                    <div><h3 class="font-bold text-brand-brown-dark text-lg">Gestión de usuarios</h3><p class="text-xs text-slate-500">Administración de solicitudes, credenciales y roles registrados en Usuarios.</p></div>
+                                    <button type="button" onclick="cargarUsuariosConfig()" class="px-3 py-2 rounded-lg border border-stone-300 text-xs font-semibold">Actualizar</button>
+                                  </div>
+                                  <div id="mapi-resumen-usuarios" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4"></div>
+                                  <label class="block text-xs text-slate-500 font-semibold mb-1" for="config-usuarios-buscador">Buscar usuario</label>
+                                  <input type="search" id="config-usuarios-buscador" oninput="filtrarUsuariosConfig()" placeholder="Nombre, apellido, usuario o correo..." class="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg mb-3 focus:outline-none focus:border-brand-green">
+                                  <div class="overflow-x-auto border rounded-xl border-stone-200"><table class="w-full text-sm text-left min-w-[760px]"><thead class="bg-stone-50 text-slate-600"><tr><th class="p-3">Nombre</th><th class="p-3">Usuario</th><th class="p-3">Correo</th><th class="p-3">Teléfono</th><th class="p-3">Solicitud</th><th class="p-3">Rol asignado</th><th class="p-3">Acción</th></tr></thead><tbody id="config-usuarios-lista"><tr><td colspan="7" class="p-4">Cargando usuarios...</td></tr></tbody></table></div>
+                                  <p id="mapi-total-usuarios" class="text-xs text-slate-500 mt-3"></p>
                                 </div>
 
                                 <!-- ===== SECCIÓN: CONTACTO ===== -->
@@ -3927,7 +3919,7 @@ Asociación Vecinal Rincón Norte
             const lista = document.getElementById("config-usuarios-lista");
             if (!lista) return;
 
-            lista.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Cargando usuarios...</p>`;
+            lista.innerHTML = `<tr><td colspan="7" class="p-4">Cargando usuarios...</td></tr>`;
 
             try {
                 const res = await fetch(webAppUrl, {
@@ -3950,10 +3942,10 @@ Asociación Vecinal Rincón Norte
             } catch (error) {
                 console.error("Error cargando usuarios:", error);
                 lista.innerHTML = `
-                    <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                    <tr><td colspan="7" class="p-3 bg-amber-50 text-amber-800">
                         ⚠️ No se pudieron cargar los usuarios.
                         <div class="mt-2 break-words" id="error-usuarios-mapi"></div>
-                    </div>
+                    </td></tr>
                 `;
                 const elError = document.getElementById('error-usuarios-mapi');
                 if (elError) elError.textContent = error.message;
@@ -3961,23 +3953,51 @@ Asociación Vecinal Rincón Norte
         }
 
         function escapeMAPI(v) { return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-        function renderUsuariosConfig(lista) {
-            const cont = document.getElementById('config-usuarios-lista');
-            if (!cont) return;
-            cont.innerHTML = lista.length ? lista.map(u => `<div class="border rounded-xl p-3 flex justify-between items-center gap-2"><div><b>${escapeMAPI(u.nombre)} ${escapeMAPI(u.apellido)}</b><div class="text-xs">${escapeMAPI(u.usuario)} · ${escapeMAPI(u.tipoAcceso || 'SIN ACCESO')}</div></div><button class="px-3 py-2 bg-stone-100 rounded-lg" onclick="editarUsuarioMAPI(${Number(u.fila)})">Editar</button></div>`).join('') : '<p>No hay usuarios registrados.</p>';
+        function rolUsuarioMAPI(rol) {
+            const r = String(rol || '').toUpperCase();
+            const estilo = r === 'ADMIN' ? 'bg-emerald-900 text-white' : r === 'VECINAL' ? 'bg-blue-100 text-blue-800' : r === 'RECHAZADO' ? 'bg-red-100 text-red-700' : 'bg-stone-100 text-slate-600';
+            return `<span class="text-[10px] font-bold px-2 py-1 rounded-full ${estilo}">${escapeMAPI(r || 'SIN ASIGNAR')}</span>`;
         }
+        function renderUsuariosConfig(lista) {
+            const tbody = document.getElementById('config-usuarios-lista');
+            if (!tbody) return;
+            const contar = r => usuariosCache.filter(u => String(u.tipoAcceso || '').toUpperCase() === r).length;
+            const resumen = document.getElementById('mapi-resumen-usuarios');
+            if(resumen) resumen.innerHTML = [['ADMIN',contar('ADMIN'),'bg-emerald-900 text-white'],['VECINAL',contar('VECINAL'),'bg-blue-50 text-blue-800'],['RECHAZADOS',contar('RECHAZADO'),'bg-red-50 text-red-700'],['SIN ASIGNAR',usuariosCache.filter(u=>!String(u.tipoAcceso||'').trim()).length,'bg-amber-50 text-amber-800']].map(x=>`<div class="rounded-xl p-3 ${x[2]}"><div class="text-[10px] font-semibold">${x[0]}</div><div class="text-2xl font-bold">${x[1]}</div></div>`).join('');
+            tbody.innerHTML = lista.length ? lista.map(u => `<tr class="border-t border-stone-200 hover:bg-stone-50"><td class="p-3 font-semibold">${escapeMAPI(u.nombre)} ${escapeMAPI(u.apellido)}</td><td class="p-3 text-xs">${escapeMAPI(u.usuario)}</td><td class="p-3">${escapeMAPI(u.email || '—')}</td><td class="p-3">${escapeMAPI(u.telefono || '—')}</td><td class="p-3">${escapeMAPI(u.tipoSolicitado || '—')}</td><td class="p-3">${rolUsuarioMAPI(u.tipoAcceso)}</td><td class="p-3"><button type="button" class="border rounded-lg px-3 py-1.5 text-xs font-semibold" onclick="editarUsuarioMAPI(${Number(u.fila)})">Editar</button></td></tr>`).join('') : '<tr><td colspan="7" class="p-4 text-center text-slate-500">No hay usuarios que coincidan con la búsqueda.</td></tr>';
+            const total = document.getElementById('mapi-total-usuarios'); if(total) total.textContent = `${lista.length} de ${usuariosCache.length} usuarios registrados.`;
+        }
+        let mapiUsuarioOriginal = '';
         function editarUsuarioMAPI(fila) {
             if (currentAccessType !== 'ADMIN') return showAlert('Solo ADMIN puede editar usuarios.', 'error');
-            const u = usuariosCache.find(x => Number(x.fila) === fila); if (!u) return;
-            const nombre = prompt('Nombre', u.nombre || ''); if (nombre === null) return;
-            const apellido = prompt('Apellido', u.apellido || ''); if (apellido === null) return;
-            const telefono = prompt('Teléfono', u.telefono || ''); if (telefono === null) return;
-            const email = prompt('Correo electrónico', u.email || ''); if (email === null) return;
-            const usuario = prompt('Nombre de usuario', u.usuario || ''); if (usuario === null) return;
-            const tipoAcceso = prompt('Acceso: ADMIN, VECINAL o RECHAZADO (vacío = pendiente)', u.tipoAcceso || ''); if (tipoAcceso === null) return;
-            const clave = prompt('Nueva contraseña (dejar vacío para conservar)', ''); if (clave === null) return;
-            fetch(webAppUrl, {method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'updateUsuario',actor:getCurrentUsername(),fila,nombre,apellido,telefono,email,usuario,tipoAcceso,clave})})
-              .then(r=>r.json()).then(r=>{if(r.status !== 'success') throw Error(r.message); showAlert('Usuario actualizado','success');cargarUsuariosConfig();}).catch(e=>showAlert(e.message,'error'));
+            const u=usuariosCache.find(x=>Number(x.fila)===Number(fila));if(!u)return;
+            const campos={fila:u.fila,nombre:u.nombre,apellido:u.apellido,telefono:u.telefono,email:u.email,usuario:u.usuario,solicitud:u.tipoSolicitado,acceso:u.tipoAcceso};
+            for(const [k,v] of Object.entries(campos)){const el=document.getElementById('mapi-u-'+k);if(el)el.value=v??'';}
+            document.getElementById('mapi-u-clave').value='';
+            document.getElementById('mapi-u-error').classList.add('hidden');
+            mapiUsuarioOriginal=JSON.stringify(campos);
+            const modal=document.getElementById('mapi-modal-usuario');modal.classList.remove('hidden');modal.classList.add('flex');
+        }
+        function cerrarUsuarioMAPI() {
+            const modal=document.getElementById('mapi-modal-usuario');modal.classList.add('hidden');modal.classList.remove('flex');
+        }
+        function generarClaveUsuarioMAPI() {
+            const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789#@';
+            const values=new Uint32Array(12);crypto.getRandomValues(values);
+            document.getElementById('mapi-u-clave').value=Array.from(values,x=>chars[x%chars.length]).join('');
+        }
+        async function guardarUsuarioMAPI() {
+            if(currentAccessType!=='ADMIN')return;
+            const val=k=>document.getElementById('mapi-u-'+k).value.trim();
+            const data={action:'updateUsuario',actor:getCurrentUsername(),fila:Number(val('fila')),nombre:val('nombre'),apellido:val('apellido'),telefono:val('telefono'),email:val('email'),usuario:val('usuario'),tipoSolicitado:val('solicitud'),tipoAcceso:val('acceso'),clave:val('clave')};
+            const btn=document.getElementById('mapi-u-guardar');const err=document.getElementById('mapi-u-error');btn.disabled=true;btn.textContent='Guardando…';err.classList.add('hidden');
+            try {
+                const response=await fetch(webAppUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data)});
+                const raw=await response.text();if(!response.ok||!raw.trim())throw Error('No hubo respuesta válida del servidor: '+response.status);
+                const result=JSON.parse(raw);if(result.status!=='success')throw Error(result.message||'No se pudo guardar');
+                cerrarUsuarioMAPI();await cargarUsuariosConfig();showAlert('Usuario actualizado correctamente','success');
+            } catch(e){err.textContent=e.message;err.classList.remove('hidden');}
+            finally{btn.disabled=false;btn.textContent='Guardar cambios';}
         }
         let actuacionesConfigCache = [];
         async function cargarActuacionesConfig() {
@@ -4004,7 +4024,7 @@ Asociación Vecinal Rincón Norte
             if (!q) return renderUsuariosConfig(usuariosCache);
 
             const filtrados = usuariosCache.filter(u =>
-                `${u.nombre || ""} ${u.apellido || ""} ${u.usuario || ""}`.toLowerCase().includes(q)
+                `${u.nombre || ""} ${u.apellido || ""} ${u.usuario || ""} ${u.email || ""} ${u.telefono || ""} ${u.tipoSolicitado || ""} ${u.tipoAcceso || ""}`.toLowerCase().includes(q)
             );
             renderUsuariosConfig(filtrados);
         }
@@ -6064,5 +6084,25 @@ setTimeout(() => {
 
     </script>
 
+
+<!-- Edición de usuarios, adaptada del flujo de LINEZ -->
+<div id="mapi-modal-usuario" class="fixed inset-0 z-[9999] bg-black/50 hidden items-center justify-center p-3" role="dialog" aria-modal="true" aria-labelledby="mapi-usuario-titulo">
+  <div class="bg-white w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl p-5 text-slate-800">
+    <div class="flex justify-between items-start mb-4"><div><p class="text-xs text-slate-500">Gestión de usuarios</p><h3 id="mapi-usuario-titulo" class="font-bold text-xl text-brand-brown-dark">Editar usuario</h3></div><button type="button" onclick="cerrarUsuarioMAPI()" aria-label="Cerrar" class="text-2xl text-slate-500">×</button></div>
+    <form id="mapi-form-usuario" onsubmit="event.preventDefault();guardarUsuarioMAPI()" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <input type="hidden" id="mapi-u-fila">
+      <div><label class="block text-xs font-semibold mb-1">Nombre</label><input required id="mapi-u-nombre" class="w-full border rounded-lg p-2 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Apellido</label><input id="mapi-u-apellido" class="w-full border rounded-lg p-2 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Teléfono</label><input id="mapi-u-telefono" type="tel" class="w-full border rounded-lg p-2 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Correo electrónico</label><input id="mapi-u-email" type="email" class="w-full border rounded-lg p-2 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Usuario</label><input required id="mapi-u-usuario" class="w-full border rounded-lg p-2 text-sm"></div>
+      <div><label class="block text-xs font-semibold mb-1">Solicitud original</label><input id="mapi-u-solicitud" class="w-full border rounded-lg p-2 text-sm"></div>
+      <div class="sm:col-span-2 bg-stone-50 rounded-xl p-3 border"><label class="block text-xs font-semibold mb-1">Nueva contraseña</label><div class="flex gap-2"><input id="mapi-u-clave" type="text" autocomplete="new-password" placeholder="Dejar en blanco para conservar la actual" class="min-w-0 flex-1 border rounded-lg p-2 text-sm"><button type="button" onclick="generarClaveUsuarioMAPI()" class="border rounded-lg px-3 text-xs font-semibold">Generar contraseña</button></div><p class="text-[11px] text-slate-500 mt-1">La contraseña actual no se muestra ni se devuelve al navegador.</p></div>
+      <div class="sm:col-span-2"><label class="block text-xs font-semibold mb-1">Rol asignado</label><select id="mapi-u-acceso" class="w-full border rounded-lg p-2 text-sm"><option value="">Sin asignar</option><option value="VECINAL">VECINAL</option><option value="ADMIN">ADMIN</option><option value="RECHAZADO">RECHAZADO</option></select></div>
+      <div class="sm:col-span-2 text-xs text-red-700 hidden" id="mapi-u-error"></div>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2"><button type="button" onclick="cerrarUsuarioMAPI()" class="border rounded-lg px-4 py-2 text-sm">Cerrar</button><button id="mapi-u-guardar" type="submit" class="bg-brand-green text-white font-semibold rounded-lg px-4 py-2 text-sm">Guardar cambios</button></div>
+    </form>
+  </div>
+</div>
 </body>
 </html>
