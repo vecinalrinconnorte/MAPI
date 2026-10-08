@@ -1355,6 +1355,13 @@
                                             Guardar cambios
                                         </button>
                                     </div>
+                                <!-- NOTA MUNICIPAL: texto maestro solo editable por ADMIN -->
+                                <div id="config-nota-municipal" class="config-section-note p-4 border border-stone-200 rounded-xl mt-5 mb-6">
+                                    <h4 class="font-bold text-brand-brown-dark mb-1">Nota a la Municipalidad</h4>
+                                    <p class="text-xs text-slate-500 mb-3">Texto base sincronizado con Nota_municipal!A2. Solo ADMIN puede editarlo.</p>
+                                    <textarea id="config-nota-base" rows="12" class="w-full border border-stone-200 rounded-lg p-3 text-sm font-mono" placeholder="Cargando nota municipal..."></textarea>
+                                    <button type="button" onclick="guardarNotaBaseMAPI()" class="mt-3 px-4 py-2 rounded-lg bg-brand-green text-white text-sm font-semibold">Guardar nota base</button>
+                                </div>
                                 </div>
 
                                 <!-- ===== SECCIÓN: USUARIOS ===== -->
@@ -1390,10 +1397,11 @@
                                             <label class="block text-[10px] font-semibold text-slate-600 mb-1">Número de WhatsApp</label>
                                             <input type="text" id="config-contacto-whatsapp" placeholder="3425262875" class="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:border-brand-green">
                                         </div>
+                                        <div><label class="block text-[10px] font-semibold text-slate-600 mb-1">Alias de transferencia</label><input type="text" id="config-contacto-alias" placeholder="RINCON.NORTE.BHPESOS" class="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:border-brand-green"></div>
                                         <button onclick="saveContactoConfig()" class="px-4 py-2 bg-brand-green hover:bg-brand-green-dark text-white text-sm font-bold rounded-lg transition shadow-sm min-h-[42px]">
                                             Guardar cambios
                                         </button>
-                                        <p class="text-[10px] text-slate-400">Los cambios se guardan localmente. La sincronización con la nube se implementará a futuro.</p>
+                                        <p class="text-[10px] text-slate-400">Los datos se sincronizan con la hoja Asociarse de Google Sheets.</p>
                                     </div>
                                 </div>
 
@@ -2093,7 +2101,7 @@
                         Cuota anual
                     </h3>
                     <p class="text-sm text-slate-700 leading-relaxed">
-                        La cuota correspondiente al año 2026 es de <strong>$30.000</strong>, y se abona en un <strong>único pago por transferencia bancaria</strong>.
+                        La cuota correspondiente al año <span id="asoc-anio">2026</span> es de <strong id="asoc-cuota">$30.000</strong>, y se abona en un <strong>único pago por transferencia bancaria</strong>.
                     </p>
                 </div>
 
@@ -2118,7 +2126,7 @@
                         <div><span class="text-slate-500 inline-block w-24">Titular:</span> <strong>ASOC CIVIL VECINAL RINCÓN NORTE</strong></div>
                         <div><span class="text-slate-500 inline-block w-24">CUIT:</span> <strong>30-71467207-6</strong></div>
                         <div><span class="text-slate-500 inline-block w-24">N° cuenta:</span> <strong>403200036465982</strong></div>
-                        <div><span class="text-slate-500 inline-block w-24">Alias:</span> <strong>RINCON.NORTE.BHPESOS</strong></div>
+                        <div><span class="text-slate-500 inline-block w-24">Alias:</span> <strong id="asoc-alias">RINCON.NORTE.BHPESOS</strong></div>
                     </div>
                 </div>
 
@@ -2134,7 +2142,7 @@
                         Cómo completar la inscripción
                     </h3>
                     <p class="text-sm text-slate-700 leading-relaxed mb-2">
-                        Una vez realizada la transferencia, escribinos por <strong>WhatsApp al 3425262875</strong> y envianos:
+                        Una vez realizada la transferencia, escribinos por <strong>WhatsApp al <span id="asoc-whatsapp">3425262875</span></strong> y envianos:
                     </p>
                     <ul class="space-y-1.5 text-sm text-slate-700 leading-relaxed pl-5 list-disc">
                         <li>Comprobante de pago</li>
@@ -2302,12 +2310,13 @@ Asociación Vecinal Rincón Norte
 [Cargo]
 [Teléfono / correo electrónico de contacto]`;
 
+        document.addEventListener('DOMContentLoaded', ()=>{ consultarAsociarseMAPI(); cargarNotaBaseMAPI(); });
         function getTextoNotaMunicipalidad() {
-            return localStorage.getItem("SGIC_nota_municipalidad") || TEXTO_NOTA_MUNICIPALIDAD_DEFAULT;
+            return notaBaseMAPI !== null ? notaBaseMAPI : TEXTO_NOTA_MUNICIPALIDAD_DEFAULT;
         }
 
         function setTextoNotaMunicipalidad(texto) {
-            localStorage.setItem("SGIC_nota_municipalidad", texto);
+            // La nota base se edita exclusivamente desde Comunicación institucional.
         }
 
         // ==============================================
@@ -2856,9 +2865,9 @@ Asociación Vecinal Rincón Norte
 
             const parrafos = texto.split('\n').filter(p => p.trim() !== '');
 
-            let html = `<h2 class="text-xl font-bold text-brand-brown-dark mb-3">${titulo}</h2>`;
+            let html = `<h2 class="text-xl font-bold text-brand-brown-dark mb-3">${escapeMAPI(titulo)}</h2>`;
             parrafos.forEach(p => {
-                html += `<p class="text-slate-600 text-sm leading-relaxed text-justify mb-3">${p.trim()}</p>`;
+                html += `<p class="text-slate-600 text-sm leading-relaxed text-left mb-3">${escapeMAPI(p.trim())}</p>`;
             });
 
             container.innerHTML = html;
@@ -2946,14 +2955,13 @@ Asociación Vecinal Rincón Norte
                 "¿DAR DE BAJA LAS INCIDENCIAS FILTRADAS?",
                 `Esta acción marcará como "borrado" ${filtradas.length} incidencia${filtradas.length === 1 ? "" : "s"} correspondiente${filtradas.length === 1 ? "" : "s"} al filtro actual. Los demás registros permanecerán sin cambios.`,
                 function() {
-                    executeClearAllData();
+                    executeClearAllData(filtradas.map(i => i.id).filter(Boolean));
                 }
             );
         }
 
-        function executeClearAllData() {
-            const filtradas = getFilteredIncidencias();
-            const idsFiltrados = filtradas.map(i => i.id).filter(Boolean);
+        function executeClearAllData(idsConfirmados) {
+            const idsFiltrados = Array.isArray(idsConfirmados) ? [...new Set(idsConfirmados)] : [];
             const usuario = getCurrentUsername();
 
             if (!usuario) {
@@ -2974,7 +2982,8 @@ Asociación Vecinal Rincón Norte
                 body: JSON.stringify({
                     action: "deleteAll",
                     usuario: usuario,
-                    ids: idsFiltrados
+                    ids: idsFiltrados,
+                    token: sessionStorage.getItem('SGIC_session_token') || ''
                 })
             })
             .then(response => response.text())
@@ -2991,7 +3000,11 @@ Asociación Vecinal Rincón Norte
                     throw new Error(data.message || "No se pudieron dar de baja las incidencias.");
                 }
 
-                const idsBorrados = new Set(data.ids || idsFiltrados);
+                if (!Array.isArray(data.ids) || data.ids.length !== idsFiltrados.length ||
+                    idsFiltrados.some(id => !data.ids.includes(id)) || Number(data.count) !== idsFiltrados.length) {
+                    throw new Error('La respuesta no confirma exclusivamente los IDs filtrados. Recargá el listado antes de continuar.');
+                }
+                const idsBorrados = new Set(data.ids);
 
                 incidencias = incidencias.filter(i => !idsBorrados.has(i.id));
                 localStorage.setItem("SGIC_incidencias", JSON.stringify(incidencias));
@@ -3840,6 +3853,7 @@ Asociación Vecinal Rincón Norte
             if (section === 'usuarios') cargarUsuariosConfig();
             if (section === 'comunicacion') cargarComunicacionConfig();
             if (section === 'contacto') cargarContactoConfig();
+            if (section === 'comunicacion' && currentAccessType === 'ADMIN') cargarNotaBaseMAPI();
             if (section === 'actuaciones') cargarActuacionesConfig();
 
             if (window.lucide) lucide.createIcons();
@@ -3971,34 +3985,49 @@ Asociación Vecinal Rincón Norte
             renderUsuariosConfig(filtrados);
         }
 
-        function cargarContactoConfig() {
-            const anio = localStorage.getItem("SGIC_contacto_anio") || "2026";
-            const monto = localStorage.getItem("SGIC_contacto_monto") || "$30.000";
-            const wsp = localStorage.getItem("SGIC_contacto_wsp") || "3425262875";
-
-            const eA = document.getElementById("config-contacto-anio-cuota");
-            const eM = document.getElementById("config-contacto-monto-cuota");
-            const eW = document.getElementById("config-contacto-whatsapp");
-            if (eA) eA.value = anio;
-            if (eM) eM.value = monto;
-            if (eW) eW.value = wsp;
+        const ASOC_DEFAULT = {anio:'2026',cuota:'$30.000',whatsapp:'3425262875',alias:'RINCON.NORTE.BHPESOS'};
+        let asocConfigMAPI = {...ASOC_DEFAULT};
+        let notaBaseMAPI = null;
+        function mostrarAsociarseMAPI() {
+            const vals={'asoc-anio':asocConfigMAPI.anio,'asoc-cuota':asocConfigMAPI.cuota,'asoc-whatsapp':asocConfigMAPI.whatsapp,'asoc-alias':asocConfigMAPI.alias};
+            Object.entries(vals).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.textContent=String(val||'');});
         }
-
-        function saveContactoConfig() {
-            const anio = document.getElementById("config-contacto-anio-cuota")?.value.trim() || "";
-            const monto = document.getElementById("config-contacto-monto-cuota")?.value.trim() || "";
-            const wsp = document.getElementById("config-contacto-whatsapp")?.value.trim() || "";
-
-            if (!anio || !monto || !wsp) {
-                showAlert("Complete todos los campos de contacto.", "error");
-                return;
-            }
-
-            localStorage.setItem("SGIC_contacto_anio", anio);
-            localStorage.setItem("SGIC_contacto_monto", monto);
-            localStorage.setItem("SGIC_contacto_wsp", wsp);
-
-            showAlert("Datos de contacto guardados localmente.", "success");
+        async function consultarAsociarseMAPI() {
+            try {
+                const resp=await fetch(webAppUrl+'?action=getAsociarse&nocache='+Date.now(),{cache:'no-store'});
+                const j=await resp.json();if(j.status!=='success')throw Error(j.message||'No se pudieron obtener los datos');
+                asocConfigMAPI={...ASOC_DEFAULT,...j.config};mostrarAsociarseMAPI();return true;
+            } catch(e){console.error('Asociarse:',e);return false;}
+        }
+        async function cargarContactoConfig() {
+            await consultarAsociarseMAPI();
+            const vals={'config-contacto-anio-cuota':asocConfigMAPI.anio,'config-contacto-monto-cuota':asocConfigMAPI.cuota,'config-contacto-whatsapp':asocConfigMAPI.whatsapp,'config-contacto-alias':asocConfigMAPI.alias};
+            Object.entries(vals).forEach(([id,value])=>{const e=document.getElementById(id);if(e)e.value=value||'';});
+        }
+        async function saveContactoConfig() {
+            const config={anio:document.getElementById('config-contacto-anio-cuota').value.trim(),cuota:document.getElementById('config-contacto-monto-cuota').value.trim(),whatsapp:document.getElementById('config-contacto-whatsapp').value.trim(),alias:document.getElementById('config-contacto-alias').value.trim()};
+            if(Object.values(config).some(v=>!v))return showAlert('Completá año, cuota, WhatsApp y alias.','error');
+            try {
+                const r=await fetch(webAppUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveAsociarse',token:sessionStorage.getItem('SGIC_session_token'),config})});
+                const j=await r.json();if(j.status!=='success')throw Error(j.message||'No se pudo guardar');
+                asocConfigMAPI={...config,...(j.config||{})};mostrarAsociarseMAPI();showAlert('Datos de Asociarse actualizados en Google Sheets.','success');
+            } catch(e){showAlert('No se pudieron guardar los datos: '+e.message,'error');}
+        }
+        async function cargarNotaBaseMAPI() {
+            try {
+                const r=await fetch(webAppUrl+'?action=getNotaMunicipal&nocache='+Date.now(),{cache:'no-store'});const j=await r.json();
+                if(j.status!=='success')throw Error(j.message||'No se pudo leer Nota_municipal');
+                notaBaseMAPI=j.texto||'';const el=document.getElementById('config-nota-base');if(el)el.value=notaBaseMAPI;const printEl=document.getElementById('print-texto-municipalidad');if(printEl&&!printEl.dataset.edited)printEl.value=notaBaseMAPI;
+            }catch(e){console.error('Nota municipal:',e);}
+        }
+        async function guardarNotaBaseMAPI() {
+            const texto=document.getElementById('config-nota-base')?.value||'';
+            if(!texto.trim())return showAlert('La nota no puede estar vacía.','error');
+            try {
+                const r=await fetch(webAppUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'saveNotaMunicipal',token:sessionStorage.getItem('SGIC_session_token'),texto})});
+                const j=await r.json();if(j.status!=='success')throw Error(j.message||'No se pudo guardar');
+                notaBaseMAPI=texto;showAlert('Nota base sincronizada con Google Sheets.','success');
+            }catch(e){showAlert('No se pudo guardar la nota: '+e.message,'error');}
         }
 
         // ==============================================
@@ -4110,14 +4139,14 @@ Asociación Vecinal Rincón Norte
 
         function restaurarTextoNotaMunicipalidad() {
             if (!confirm("¿Restaurar el texto original? Se perderán los cambios no guardados.")) return;
-            localStorage.removeItem("SGIC_nota_municipalidad");
+
             const textarea = document.getElementById("print-texto-municipalidad");
-            if (textarea) textarea.value = TEXTO_NOTA_MUNICIPALIDAD_DEFAULT;
+            if (textarea) textarea.value = getTextoNotaMunicipalidad();
         }
 
         document.addEventListener("input", function(e) {
             if (e.target && e.target.id === "print-texto-municipalidad") {
-                setTextoNotaMunicipalidad(e.target.value);
+                e.target.dataset.edited = 'true'; // Solo la copia para este PDF
             }
         });
 
@@ -5407,6 +5436,8 @@ Asociación Vecinal Rincón Norte
         }
 
         function abrirAsociarse() {
+            mostrarAsociarseMAPI();
+            consultarAsociarseMAPI();
             const modal = document.getElementById("modal-asociarse");
             if (!modal) return;
             modal.classList.remove("hidden");
