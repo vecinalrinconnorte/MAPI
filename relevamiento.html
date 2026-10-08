@@ -505,7 +505,7 @@
                     <button id="btn-cartel-campana" type="button" onclick="abrirModalCampana()" class="w-full flex items-center gap-3 p-3 rounded-xl transition-all cartel-campana-abierta mb-3 sm:mb-4 text-left">
                         <div class="flex-1 min-w-0">
                             <p class="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-wider">Relevamiento Comunitario</p>
-                            <p id="cartel-estado" class="font-bold text-sm sm:text-base text-brand-green-dark truncate">CAMPAÑA ABIERTA</p>
+                            <p id="cartel-estado" class="font-bold text-sm sm:text-base text-slate-600 truncate" aria-live="polite">CARGANDO CAMPAÑA…</p>
                         </div>
                         <i data-lucide="info" class="w-5 h-5 text-brand-green shrink-0"></i>
                     </button>
@@ -2173,7 +2173,7 @@
                     <div class="flex items-center gap-3">
                         <div>
                             <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Relevamiento Comunitario</p>
-                            <h3 id="modal-campana-estado" class="font-bold text-lg text-brand-green-dark">CAMPAÑA ABIERTA</h3>
+                            <h3 id="modal-campana-estado" class="font-bold text-lg text-slate-600">CARGANDO CAMPAÑA…</h3>
                         </div>
                     </div>
                     <button onclick="cerrarModalCampana()" class="p-1 hover:bg-white/50 rounded-lg transition">
@@ -2813,11 +2813,13 @@ Asociación Vecinal Rincón Norte
             }
 
             ESTADO_CAMPANA={...DEFAULT_CAMPANA,activa:false};
+            window.mapiCampanaLista = false;
+            document.getElementById("bloque-formulario")?.classList.add("hidden");
             cargarCampanaPublicaMAPI();
             setInterval(cargarCampanaPublicaMAPI, 60000);
             loadIntroTextUI();
             actualizarUIaceptacionTerminos();
-            aplicarEstadoCampanaUI();
+            // No mostrar «Cerrada» provisionalmente antes de recibir el estado del servidor.
             inicializarContadorComentario();
             prepararNavegacionTeclado();
 
@@ -2851,7 +2853,9 @@ Asociación Vecinal Rincón Norte
 
             cargarIncidenciasDesdeNube();
 
-            setTimeout(() => obtenerUbicacionUsuario(true), 700);
+            // GPS sólo a pedido del vecino; evita errores de CoreLocation al ingresar.
+            const avisoGPS = document.getElementById("precision-ubicacion");
+            if (avisoGPS) avisoGPS.innerText = "Tocá el mapa para marcar el problema o elegí «Usar mi ubicación actual».";
         };
 
         function loadIntroTextUI(tituloFuente = null, textoFuente = null) {
@@ -3061,6 +3065,25 @@ Asociación Vecinal Rincón Norte
             if (container) {
                 container.className += ' leaflet-control-layers-vecino';
             }
+
+            // Leaflet puede arrancar antes de que el grid responsivo tenga su ancho final.
+            // Recalcular el tamaño sin alterar el centro elegido ni pedir GPS.
+            const corregirTamanoVecino = () => {
+                if (!mapVecino) return;
+                const el=mapVecino.getContainer();
+                if(el && el.offsetWidth>0 && el.offsetHeight>0)mapVecino.invalidateSize({pan:false,debounceMoveend:true});
+            };
+            if (typeof ResizeObserver !== 'undefined') {
+                const observerMapaVecino = new ResizeObserver(corregirTamanoVecino);
+                observerMapaVecino.observe(mapVecino.getContainer());
+            }
+            window.addEventListener('resize', corregirTamanoVecino, {passive:true});
+            requestAnimationFrame(() => requestAnimationFrame(corregirTamanoVecino));
+            [200, 650, 1400].forEach(ms => setTimeout(corregirTamanoVecino, ms));
+            osmVecino.on('tileerror', () => {
+                // Reintentar un refresco de tamaño, sin disparar avisos al vecino.
+                setTimeout(corregirTamanoVecino, 700);
+            });
 
             mapVecino.on('click', function(e) {
                 if (vecinoAccuracyCircle) {
@@ -3565,7 +3588,7 @@ Asociación Vecinal Rincón Norte
                     actualizarStatsCampana();
                     actualizarMapaPublico();
                     actualizarPanelResultadosCampana();
-                    setTimeout(() => obtenerUbicacionUsuario(true), 500);
+                    // No iniciar GPS automáticamente después de guardar; la ubicación es optativa.
                 }, 300);
             } else {
                 console.error("Error lógico en Apps Script:", data.message);
@@ -5584,6 +5607,7 @@ Asociación Vecinal Rincón Norte
         // ==============================================
 
         function aplicarEstadoCampanaUI() {
+            if (!window.mapiCampanaLista) return;
             const cfg = ESTADO_CAMPANA;
             const btnCartel = document.getElementById("btn-cartel-campana");
             const iconoCartel = document.getElementById("cartel-icono");
@@ -5719,6 +5743,7 @@ setTimeout(() => {
         }
 
         function abrirModalCampana() {
+            if (!window.mapiCampanaLista) { cargarCampanaPublicaMAPI(); return; }
             document.getElementById("modal-campana").classList.remove("hidden");
             document.body.style.overflow = "hidden";
             if (window.lucide) lucide.createIcons();
@@ -5731,8 +5756,23 @@ setTimeout(() => {
 
         let campanasMAPI=[];let campanaEditNumeroMAPI=null;
         async function mapiCampRequest_(data){const r=await fetch(webAppUrl,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({...data,token:sessionStorage.getItem('SGIC_session_token')||''})});const j=await r.json();if(j.status!=='success')throw Error(j.message||'Error de servidor');return j;}
-        function aplicarCampanaPublicaMAPI_(c){if(!c)return;ESTADO_CAMPANA={...DEFAULT_CAMPANA,activa:!!c.activa,numero:c.numero,nombre:c.nombre,fechaInicio:c.inicio,fechaFin:c.fin,diasRestantes:c.diasRestantes,textoAbierta:c.textoAbierta||DEFAULT_CAMPANA.textoAbierta,textoCerrada:c.textoCerrada||DEFAULT_CAMPANA.textoCerrada,proximaCampana:[c.proximoInicio,c.proximoFin].filter(Boolean).map(mapiFechaES_).join(' al ')};aplicarEstadoCampanaUI();}
-        async function cargarCampanaPublicaMAPI(){try{const r=await fetch(webAppUrl+'?action=getCampanaPublica&_='+Date.now(),{cache:'no-store'});const j=await r.json();if(j.status==='success')aplicarCampanaPublicaMAPI_(j.campana);}catch(e){console.error('No se pudo sincronizar campaña',e);}}
+        function aplicarCampanaPublicaMAPI_(c){if(!c)return;window.mapiCampanaLista=true;ESTADO_CAMPANA={...DEFAULT_CAMPANA,activa:!!c.activa,numero:c.numero,nombre:c.nombre,fechaInicio:c.inicio,fechaFin:c.fin,diasRestantes:c.diasRestantes,textoAbierta:c.textoAbierta||DEFAULT_CAMPANA.textoAbierta,textoCerrada:c.textoCerrada||DEFAULT_CAMPANA.textoCerrada,proximaCampana:[c.proximoInicio,c.proximoFin].filter(Boolean).map(mapiFechaES_).join(' al ')};aplicarEstadoCampanaUI();}
+        async function cargarCampanaPublicaMAPI(){
+            try {
+                const r=await fetch(webAppUrl+'?action=getCampanaPublica&_='+Date.now(),{cache:'no-store'});
+                if(!r.ok)throw Error('HTTP '+r.status);
+                const j=await r.json();
+                if(j.status!=='success'||!j.campana)throw Error(j.message||'Respuesta sin campaña');
+                aplicarCampanaPublicaMAPI_(j.campana);
+            } catch(e) {
+                console.error('No se pudo sincronizar campaña',e);
+                if(!window.mapiCampanaLista){
+                    const estado=document.getElementById('cartel-estado');
+                    if(estado){estado.textContent='NO SE PUDO CARGAR · REINTENTAR';estado.className='font-bold text-sm sm:text-base text-amber-800';}
+                    // El formulario permanece oculto hasta confirmar la apertura desde Sheets.
+                }
+            }
+        }
         function mapiFechaES_(ymd){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(ymd||'')))return '—';const [a,m,d]=ymd.split('-');return d+'/'+m+'/'+a;}
         function mapiHoyLocal_(){const parts=new Intl.DateTimeFormat('es-AR',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const part=k=>parts.find(x=>x.type===k)?.value||'';return part('year')+'-'+part('month')+'-'+part('day');}
         function mapiEstadoCampana_(c){const hoy=mapiHoyLocal_();if(c.forzado==='CANCELADA')return 'Cancelada';if(c.forzado==='ABIERTA')return 'Abierta (forzada)';if(c.forzado==='CERRADA')return 'Cerrada (forzada)';if(c.inicio>hoy)return 'Programada';if(c.inicio<=hoy&&hoy<=c.fin)return 'Abierta';return 'Cerrada';}
