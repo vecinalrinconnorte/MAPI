@@ -2241,20 +2241,28 @@
         // REPORTES VISIBLES
         // ==============================================
         function obtenerReportesVisibles() {
-            let propias = [];
-            try {
-                const propiasRaw = localStorage.getItem("SGIC_mis_reportes");
-                propias = propiasRaw ? JSON.parse(propiasRaw) : [];
-            } catch (e) { propias = []; }
+    let propias = [];
+    try {
+        const propiasRaw = localStorage.getItem("SGIC_mis_reportes");
+        propias = propiasRaw ? JSON.parse(propiasRaw) : [];
+    } catch (e) { propias = []; }
 
-            return incidencias.filter(inc => {
-                if (!inc.lat || !inc.lng || isNaN(inc.lat) || isNaN(inc.lng)) return false;
-                const esPendiente = String(inc.estado || "").trim().toLowerCase() === "pendiente";
-                const esPropio = propias.includes(inc.id);
-                if (esPendiente && !esPropio) return false;
-                return true;
-            });
-        }
+    return incidencias.filter(inc => {
+        if (!inc.lat || !inc.lng || isNaN(inc.lat) || isNaN(inc.lng)) return false;
+
+        const estado = String(inc.estado || "").trim().toLowerCase();
+
+        // Las descartadas nunca se publican en el mapa
+        if (estado === "descartada") return false;
+
+        // Los pendientes solo los ve quien los cargó
+        const esPendiente = estado === "pendiente";
+        const esPropio = propias.includes(inc.id);
+        if (esPendiente && !esPropio) return false;
+
+        return true;
+    });
+}
 
         // ==============================================
         // ACTUALIZAR MAPA
@@ -2475,12 +2483,16 @@
         }
 
         function actualizarDashboard() {
-            const datos = obtenerReportesVisibles();
+    const datos = incidencias;
 
             // -------- KPIs --------
             const total = datos.length;
-            const validados = datos.filter(d => String(d.estado || "").trim().toLowerCase() === "validado").length;
-            const pendientes = datos.filter(d => String(d.estado || "").trim().toLowerCase() === "pendiente").length;
+const pendientes = datos.filter(d => String(d.estado || "").trim().toLowerCase() === "pendiente").length;
+// "Validados" en el relevamiento = todo lo que NO está pendiente
+const validados = datos.filter(d => {
+    const e = String(d.estado || "").trim().toLowerCase();
+    return e !== "" && e !== "pendiente" && e !== "descartada";
+}).length;
 
             const contCategorias = {};
             datos.forEach(d => {
