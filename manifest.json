@@ -1,8 +1,8 @@
 {
   "name": "MAPI - Vecinal Rincón Norte",
-  "short_name": "MAPI RN",
+  "short_name": "MAPI",
   "description": "Mapeo de Infraestructura Hídrica - Vecinal Rincón Norte",
-  "id": "/nombre-del-repo/",
+  "id": "/MAPI/",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
