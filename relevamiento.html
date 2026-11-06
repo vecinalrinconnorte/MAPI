@@ -2241,6 +2241,65 @@
 
         const RINCON_NORTE_COORDS = [-31.58172, -60.54317];
         const webAppUrl = "https://mapih-rn.vecinal-rincon-norte-swf.workers.dev/";
+
+        // ==============================================
+        // LÍMITE BARRIAL — POLÍGONO AMPLIADO (validación)
+        // ==============================================
+        const POLIGONO_BARRIO = [
+            [-31.593739361354274, -60.560898314379997],
+            [-31.592183545470405, -60.569325224542069],
+            [-31.590274099555579, -60.567664749633238],
+            [-31.587302923224453, -60.565329879385246],
+            [-31.578887331904760, -60.562309718052859],
+            [-31.574184009569336, -60.558318343891216],
+            [-31.573493435086206, -60.556869150695448],
+            [-31.575778404213949, -60.547246836309128],
+            [-31.576922241345123, -60.540111051990309],
+            [-31.577261153355636, -60.537500399190776],
+            [-31.574352274186147, -60.534526623848933],
+            [-31.576943423382318, -60.527405875033182],
+            [-31.577981337297253, -60.527157241435290],
+            [-31.578849786988890, -60.526684837595013],
+            [-31.579845316926288, -60.524372545116577],
+            [-31.580867027432269, -60.519444335435111],
+            [-31.588480422496502, -60.525331094740153],
+            [-31.592501782659419, -60.530387087930748],
+            [-31.588859669952193, -60.549399525637625],
+            [-31.589424898042132, -60.556025123019232],
+            [-31.593739361354274, -60.560898314379997]
+        ];
+
+        function puntoEnPoligono(lat, lng, anillo) {
+            let dentro = false;
+            for (let i = 0, j = anillo.length - 1; i < anillo.length; j = i++) {
+                const latI = anillo[i][0], lngI = anillo[i][1];
+                const latJ = anillo[j][0], lngJ = anillo[j][1];
+                const intersecta =
+                    ((lngI > lng) !== (lngJ > lng)) &&
+                    (lat < ((latJ - latI) * (lng - lngI)) / (lngJ - lngI) + latI);
+                if (intersecta) dentro = !dentro;
+            }
+            return dentro;
+        }
+
+        function validarCoordenadaEnBarrio(lat, lng) {
+            if (typeof lat !== 'number' || typeof lng !== 'number' ||
+                isNaN(lat) || isNaN(lng)) {
+                return { valido: false, motivo: 'Coordenadas inválidas' };
+            }
+            const anillo = [...POLIGONO_BARRIO];
+            const p0 = anillo[0], pN = anillo[anillo.length - 1];
+            if (p0[0] === pN[0] && p0[1] === pN[1]) anillo.pop();
+
+            if (!puntoEnPoligono(lat, lng, anillo)) {
+                return { valido: false, motivo: 'Fuera del límite barrial' };
+            }
+            return { valido: true, motivo: null };
+        }
+
+        window.validarCoordenadaEnBarrio = validarCoordenadaEnBarrio;
+        window.POLIGONO_BARRIO = POLIGONO_BARRIO;
+
         let incidencias = [];
         let mapVecino, mapAdmin;
         let vecinoMarker, adminMarkersGroup, vecinoAccuracyCircle;
@@ -2667,6 +2726,12 @@ Asociación Vecinal Rincón Norte
         // 📍 COLOCAR MARCADOR VECINO CON GOTA CELESTE + AURA
         // ==============================================
         function colocarMarcadorVecino(lat, lng, completarDireccion = false) {
+            // ===== VALIDACIÓN LÍMITE BARRIAL =====
+            if (!validarCoordenadaEnBarrio(Number(lat), Number(lng)).valido) {
+                showAlert("Fuera del límite barrial", "error");
+                return false;
+            }
+            // ===== FIN VALIDACIÓN =====
             const punto = L.latLng(Number(lat), Number(lng));
 
             const gotaCeleste = L.divIcon({
@@ -2695,7 +2760,19 @@ Asociación Vecinal Rincón Norte
                     icon: gotaCeleste
                 }).addTo(mapVecino);
 
+                let _posicionPreviaDragVecino = null;
+                vecinoMarker.on("dragstart", function() {
+                    _posicionPreviaDragVecino = vecinoMarker.getLatLng();
+                });
                 vecinoMarker.on("dragend", function() {
+                    // ===== VALIDACIÓN LÍMITE BARRIAL =====
+                    const _nuevoPuntoValidar = vecinoMarker.getLatLng();
+                    if (!validarCoordenadaEnBarrio(_nuevoPuntoValidar.lat, _nuevoPuntoValidar.lng).valido) {
+                        showAlert("Fuera del límite barrial", "error");
+                        if (_posicionPreviaDragVecino) vecinoMarker.setLatLng(_posicionPreviaDragVecino);
+                        return;
+                    }
+                    // ===== FIN VALIDACIÓN =====
                     const nuevoPunto = vecinoMarker.getLatLng();
                     updateVecinoCoordenadas(nuevoPunto.lat.toFixed(7), nuevoPunto.lng.toFixed(7));
                     if (vecinoAccuracyCircle) {
@@ -3460,6 +3537,13 @@ Asociación Vecinal Rincón Norte
         showAlert("⚠️ Debe marcar el punto en el mapa de Rincón Norte.", "error");
         return;
     }
+
+    // ===== VALIDACIÓN LÍMITE BARRIAL =====
+    if (!validarCoordenadaEnBarrio(parseFloat(latVal), parseFloat(lngVal)).valido) {
+        showAlert("Fuera del límite barrial", "error");
+        return;
+    }
+    // ===== FIN VALIDACIÓN =====
 
     if (!catRadio || !subRadio) {
         showAlert("⚠️ Debe elegir una categoría y subcategoría para continuar.", "error");
